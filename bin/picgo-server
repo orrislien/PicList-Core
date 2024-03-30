@@ -68,6 +68,7 @@ if (configPath !== true && configPath !== '') {
 } else {
   configPath = ''
 }
+
 const { PicGo } = require('..')
 const picgo = new PicGo(configPath)
 const errorMessage = 'Upload failed, please check your network and config'
@@ -102,20 +103,34 @@ class Router {
     this.router = new Map()
   }
 
-  get(url, callback, urlparams) {
-    this.router.set(url, { handler: callback, urlparams })
+  addRoute (method, url, callback, urlparams) {
+    if (!this.router.has(url)) {
+      this.router.set(url, new Map())
+    }
+    this.router.get(url).set(method, { handler: callback, urlparams })
+  }
+
+  get (url, callback, urlparams) {
+    this.addRoute('GET', url, callback, urlparams)
   }
 
   post(url, callback, urlparams) {
-    this.router.set(url, { handler: callback, urlparams })
+    this.addRoute('POST', url, callback, urlparams)
   }
 
-  getHandler(url) {
+  any(url, callback, urlparams) {
+    this.addRoute('GET', url, callback, urlparams)
+    this.addRoute('POST', url, callback, urlparams)
+  }
+
+  getHandler (url, method) {
     if (this.router.has(url)) {
-      return this.router.get(url)
-    } else {
-      return null
+      const methods = this.router.get(url)
+      if (methods.has(method)) {
+        return methods.get(method)
+      }
     }
+    return null
   }
 }
 
@@ -141,6 +156,9 @@ const multerStorage = multer.diskStorage({
 const uploadMulter = multer({
   storage: multerStorage
 })
+
+router.get('/', responseForGet)
+router.get('/upload', responseForGet)
 
 router.post('/upload', async ({ response, list = [], urlparams }) => {
   try {
@@ -243,96 +261,8 @@ router.post('/upload', async ({ response, list = [], urlparams }) => {
   }
 })
 
-router.post('/heartbeat', async ({ response }) => {
-  handleResponse({
-    response,
-    body: {
-      success: true,
-      result: 'alive'
-    }
-  })
-})
-
-class Server {
-  constructor() {
-    this.httpServer = http.createServer(this.handleRequest)
-  }
-
-  handleRequest(request, response) {
-    if (request.method === 'OPTIONS') {
-      handleResponse({ response })
-      return
-    }
-
-    if (request.method === 'POST') {
-      const [url, query] = (request.url || '').split('?')
-      if (!router.getHandler(url)) {
-        console.log(`[PicList Server] don't support [${url}] url`)
-        handleResponse({
-          response,
-          statusCode: 404,
-          body: {
-            success: false
-          }
-        })
-      } else {
-        if (request.headers['content-type'] && request.headers['content-type'].startsWith('multipart/form-data')) {
-          uploadMulter.any()(request, response, err => {
-            if (err) {
-              console.log('[PicList Server]', err)
-              return handleResponse({
-                response,
-                body: {
-                  success: false,
-                  message: 'Error processing formData'
-                }
-              })
-            }
-
-            const list = request.files.map(file => file.path)
-
-            const handler = router.getHandler(url)?.handler
-            if (handler) {
-              handler({
-                list: list,
-                response,
-                urlparams: query ? new URLSearchParams(query) : undefined
-              })
-            }
-          })
-        } else {
-          let body = ''
-          let postObj
-          request.on('data', chunk => {
-            body += chunk
-          })
-          request.on('end', () => {
-            try {
-              postObj = body === '' ? {} : JSON.parse(body)
-            } catch (err) {
-              console.log('[PicList Server]', err)
-              return handleResponse({
-                response,
-                body: {
-                  success: false,
-                  message: 'Not sending data in JSON format'
-                }
-              })
-            }
-            console.log('[PicList Server] get the request', body)
-            const handler = router.getHandler(url)?.handler
-            if (handler) {
-              handler({
-                ...postObj,
-                response,
-                urlparams: query ? new URLSearchParams(query) : undefined
-              })
-            }
-          })
-        }
-      }
-    } else if (request.method === 'GET') {
-      response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
+async function responseForGet ({ response }) {
+  response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
       response.write(`
       <!DOCTYPE html>
 <html lang="en">
@@ -394,6 +324,111 @@ class Server {
 </html>
       `)
       response.end()
+}
+
+router.any('/heartbeat', async ({ response }) => {
+  handleResponse({
+    response,
+    body: {
+      success: true,
+      result: 'alive'
+    }
+  })
+})
+
+class Server {
+  constructor() {
+    this.httpServer = http.createServer(this.handleRequest)
+  }
+
+  handleRequest(request, response) {
+    if (request.method === 'OPTIONS') {
+      handleResponse({ response })
+      return
+    }
+
+    if (request.method === 'POST') {
+      const [url, query] = (request.url || '').split('?')
+      if (!router.getHandler(url, 'POST')) {
+        console.log(`[PicList Server] don't support [${url}] endpoint`)
+        handleResponse({
+          response,
+          statusCode: 404,
+          body: {
+            success: false
+          }
+        })
+      } else {
+        if (request.headers['content-type'] && request.headers['content-type'].startsWith('multipart/form-data')) {
+          uploadMulter.any()(request, response, err => {
+            if (err) {
+              console.log('[PicList Server]', err)
+              return handleResponse({
+                response,
+                body: {
+                  success: false,
+                  message: 'Error processing formData'
+                }
+              })
+            }
+
+            const list = request.files.map(file => file.path)
+
+            const handler = router.getHandler(url, 'POST')?.handler
+            if (handler) {
+              handler({
+                list: list,
+                response,
+                urlparams: query ? new URLSearchParams(query) : undefined
+              })
+            }
+          })
+        } else {
+          let body = ''
+          let postObj
+          request.on('data', chunk => {
+            body += chunk
+          })
+          request.on('end', () => {
+            try {
+              postObj = body === '' ? {} : JSON.parse(body)
+            } catch (err) {
+              console.log('[PicList Server]', err)
+              return handleResponse({
+                response,
+                body: {
+                  success: false,
+                  message: 'Not sending data in JSON format'
+                }
+              })
+            }
+            console.log('[PicList Server] get the request', body)
+            const handler = router.getHandler(url, 'POST')?.handler
+            if (handler) {
+              handler({
+                ...postObj,
+                response,
+                urlparams: query ? new URLSearchParams(query) : undefined
+              })
+            }
+          })
+        }
+      }
+    } else if (request.method === 'GET') {
+      const [url, query] = (request.url || '').split('?')
+      if (!router.getHandler(url, 'GET')) {
+        console.log(`[PicList Server] don't support [${url}] endpoint`)
+        response.statusCode = 404
+        response.end()
+      } else {
+        const handler = router.getHandler(url, 'GET')?.handler
+        if (handler) {
+          handler({
+            response,
+            urlparams: query ? new URLSearchParams(query) : undefined
+          })
+        }
+      }
     } else {
       console.log(`[PicList Server] don't support [${request.method}] method`)
       response.statusCode = 405
