@@ -765,7 +765,7 @@ const imageFormatList = ['jpg', 'jpeg', 'png', 'webp', 'bmp', 'tiff', 'tif', 'sv
 
 export const needAddWatermark = (watermarkOptions: IBuildInWaterMarkOptions | undefined, fileExt: string): boolean => {
   fileExt = fileExt.toLowerCase().replace('.', '')
-  return !!watermarkOptions && !!watermarkOptions.isAddWatermark && imageFormatList.includes(fileExt)
+  return !!watermarkOptions && !!watermarkOptions.isAddWatermark && imageFormatList.includes(fileExt) && (fileExt !== 'svg')
 }
 
 export const needCompress = (compressOptions: IBuildInCompressOptions | undefined, fileExt: string): boolean => {
