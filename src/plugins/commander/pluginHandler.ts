@@ -1,43 +1,52 @@
 import { type IPicGo, type IPlugin } from '../../types'
 
+type actionFunc = (plugins: string[], program: any) => void
+
+const createCommand = (cmd: any, command: string, description: string, alias: string, action: actionFunc, options?: { proxy: boolean, registry: boolean }): void => {
+  let program = cmd.program.command(command).description(description).alias(alias)
+  if (options?.proxy) {
+    program = program.option('-p, --proxy <proxy>', 'Add proxy for installing plugins')
+  }
+  if (options?.registry) {
+    program = program.option('-r, --registry <registry>', 'Choose a registry for installing plugins')
+  }
+  program.action(action)
+}
+
 const pluginHandler: IPlugin = {
   handle: (ctx: IPicGo) => {
-    // const pluginHandler = new PluginHandler(ctx)
     const cmd = ctx.cmd
-    cmd.program
-      .command('install <plugins...>')
-      .description('install picgo plugin')
-      .alias('add')
-      .option('-p, --proxy <proxy>', 'Add proxy for installing plugins')
-      .option('-r, --registry <registry>', 'Choose a registry for installing plugins')
-      .action((plugins: string[], program: any) => {
+    createCommand(
+      cmd,
+      'install <plugins...>',
+      'install picgo plugin',
+      'add',
+      (plugins: string[], program: any) => {
         const { proxy, registry } = program
-        const options = {
-          proxy,
-          registry
-        }
+        const options = { proxy, registry }
         ctx.pluginHandler.install(plugins, options).catch((e) => { ctx.log.error(e) })
-      })
-    cmd.program
-      .command('uninstall <plugins...>')
-      .alias('rm')
-      .description('uninstall picgo plugin')
-      .action((plugins: string[]) => {
+      },
+      { proxy: true, registry: true })
+    createCommand(
+      cmd,
+      'uninstall <plugins...>',
+      'uninstall picgo plugin',
+      'rm',
+      (plugins: string[]) => {
         ctx.pluginHandler.uninstall(plugins).catch((e) => { ctx.log.error(e) })
       })
-    cmd.program
-      .command('update <plugins...>')
-      .description('update picgo plugin')
-      .option('-p, --proxy <proxy>', 'Add proxy for installing')
-      .option('-r, --registry <registry>', 'Choose a registry for installing')
-      .action((plugins: string[], program: any) => {
+    createCommand(
+      cmd,
+      'update <plugins...>',
+      'update picgo plugin',
+      'up',
+      (plugins: string[], program: any) => {
         const { proxy, registry } = program
-        const options = {
-          proxy,
-          registry
-        }
+        const options = { proxy, registry }
         ctx.pluginHandler.update(plugins, options).catch((e: Error) => { ctx.log.error(e) })
-      })
+      },
+      { proxy: true, registry: true }
+    )
   }
 }
 

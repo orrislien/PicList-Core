@@ -68,18 +68,3 @@ class DB {
 }
 
 export default DB
-
-// const initConfig = (configPath: string): lowdb.LowdbSync<any> => {
-// }
-
-// const saveConfig = (configPath: string, config: any): void => {
-//   const db = initConfig(configPath)
-//   Object.keys(config).forEach((name: string) => {
-//     db.read().set(name, config[name]).write()
-//   })
-// }
-
-// export {
-// initConfig,
-// saveConfig
-// }

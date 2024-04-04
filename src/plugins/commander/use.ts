@@ -10,8 +10,6 @@ const use: IPlugin = {
       .action((module: string) => {
         (async () => {
           try {
-            // // load third-party plugins
-            // await ctx.pluginLoader.load()
             let prompts: any[] = []
             const config: ICLIConfigs = {
               uploader: {
@@ -70,7 +68,7 @@ const use: IPlugin = {
               'picBed.uploader': answer.uploader || ctx.getConfig<string>('picBed.current'),
               'picBed.transformer': answer.transformer || 'path'
             })
-            ctx.log.success('Configure config successfully!')
+            ctx.log.success('Configure saved successfully!')
           } catch (e: any) {
             ctx.log.error(e)
             if (process.argv.includes('--debug')) {

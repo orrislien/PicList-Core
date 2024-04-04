@@ -246,13 +246,8 @@ export const handleStreamlinePluginName = (name: string): string => {
  * @param name pluginSimpleName
  * @param scope pluginScope
  */
-export const handleCompletePluginName = (name: string, scope = ''): string => {
-  if (scope) {
-    return `@${scope}/picgo-plugin-${name}`
-  } else {
-    return `picgo-plugin-${name}`
-  }
-}
+export const handleCompletePluginName = (name: string, scope = ''): string =>
+  scope ? `@${scope}/picgo-plugin-${name}` : `picgo-plugin-${name}`
 
 /**
  * handle install/uninstall/update plugin name or path
