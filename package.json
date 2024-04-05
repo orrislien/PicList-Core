@@ -1,6 +1,6 @@
 {
   "name": "piclist",
-  "version": "1.8.2",
+  "version": "1.8.3",
   "description": "Modified PicGo core, A tool for picture uploading",
   "author": {
     "name": "Kuingsmile",
@@ -8,7 +8,7 @@
   },
   "homepage": "https://piclist.cn",
   "bugs": {
-    "url": "https://github.com/Kuingsmile/PicList/issues",
+    "url": "https://github.com/Kuingsmile/PicList-core/issues",
     "email": "pkukuing@gmail.com"
   },
   "main": "dist/index.cjs.js",
