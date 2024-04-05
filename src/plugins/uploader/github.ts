@@ -2,11 +2,10 @@ import { type IPicGo, type IPluginConfig, type IGithubConfig, type IOldReqOption
 import { IBuildInEvent } from '../../utils/enum'
 import { type ILocalesKey } from '../../i18n/zh-CN'
 import mime from 'mime-types'
+import { encodePath, formatPathHelper } from './utils'
 
 function buildGithubApiUrl (repo: string, path: string, fileName: string, extra: string = ''): string {
-  const encodedPath = encodeURIComponent(path)
-  const encodedFileName = encodeURIComponent(fileName)
-  return `https://api.github.com/repos/${repo}/contents/${encodedPath}${encodedFileName}${extra}`.replace(/%2F/g, '/')
+  return `https://api.github.com/repos/${repo}/contents/${encodePath(`${path}${fileName}`)}${extra}`
 }
 
 const postOptions = (fileName: string, options: IGithubConfig, data: any): IOldReqOptionsWithJSON => {
@@ -14,7 +13,7 @@ const postOptions = (fileName: string, options: IGithubConfig, data: any): IOldR
   const contentType = mime.lookup(fileName) || 'application/octet-stream'
   return {
     method: 'PUT',
-    url: buildGithubApiUrl(repo, options.path || '', fileName),
+    url: buildGithubApiUrl(repo, options.path, fileName),
     headers: {
       Authorization: `token ${token}`,
       'User-Agent': 'PicList',
@@ -29,7 +28,7 @@ const getOptions = (fileName: string, options: IGithubConfig): IOldReqOptionsWit
   const { token, repo, branch } = options
   return {
     method: 'GET',
-    url: buildGithubApiUrl(repo, options.path || '', fileName, `?ref=${branch}`),
+    url: buildGithubApiUrl(repo, options.path, fileName, `?ref=${branch}`),
     headers: {
       Authorization: `token ${token}`,
       'User-Agent': 'PicList'
@@ -43,9 +42,11 @@ const handle = async (ctx: IPicGo): Promise<IPicGo> => {
   if (!githubOptions) {
     throw new Error('Can\'t find github config')
   }
+  const uploadPath = formatPathHelper({ path: githubOptions.path })
+  githubOptions.path = uploadPath
+  githubOptions.customUrl = (githubOptions.customUrl || '').replace(/\/$/, '')
   try {
     const imgList = ctx.output
-    const uploadPath = githubOptions.path || ''
     for (const img of imgList) {
       if (img.fileName && img.buffer) {
         const base64Image = img.base64Image || Buffer.from(img.buffer).toString('base64')
@@ -66,7 +67,9 @@ const handle = async (ctx: IPicGo): Promise<IPicGo> => {
           if (body) {
             delete img.base64Image
             delete img.buffer
-            img.imgUrl = githubOptions.customUrl ? `${githubOptions.customUrl}/${encodeURIComponent(uploadPath)}${encodeURIComponent(img.fileName)}`.replace(/%2F/g, '/') : body.content.download_url
+            img.imgUrl = githubOptions.customUrl
+              ? `${githubOptions.customUrl}/${encodePath(`${uploadPath}${img.fileName}`)}`
+              : body.content.download_url
             img.hash = body.content.sha
           } else {
             throw new Error('Server error, please try again')
@@ -78,9 +81,11 @@ const handle = async (ctx: IPicGo): Promise<IPicGo> => {
             const res = await ctx.request(getOptions(img.fileName, githubOptions)) as any
             if (Object.keys(res).length) {
               img.hash = res.sha
-              img.imgUrl = githubOptions.customUrl ? `${githubOptions.customUrl}/${encodeURIComponent(uploadPath)}${encodeURIComponent(img.fileName)}`.replace(/%2F/g, '/') : res.download_url
+              img.imgUrl = githubOptions.customUrl
+                ? `${githubOptions.customUrl}/${encodePath(`${uploadPath}${img.fileName}`)}`
+                : res.download_url
             } else {
-              throw new Error('Get Contents error, please try again')
+              throw err
             }
           } else {
             throw err

@@ -4,6 +4,7 @@ import { IBuildInEvent } from '../../utils/enum'
 import { type ILocalesKey } from '../../i18n/zh-CN'
 import { safeParse } from '../../utils/common'
 import mime from 'mime-types'
+import { encodePath, formatPathHelper } from './utils'
 
 // generate COS signature string
 const generateSignature = (options: IUpyunConfig, fileName: string): string => {
@@ -12,7 +13,7 @@ const generateSignature = (options: IUpyunConfig, fileName: string): string => {
   const password = options.password
   const md5Password = MD5(password)
   const date = new Date().toUTCString()
-  const uri = `/${options.bucket}/${encodeURIComponent(path)}${encodeURIComponent(fileName)}`.replace(/%2F/g, '/')
+  const uri = `/${options.bucket}/${encodePath(`${path}${fileName}`)}`
   const value = `PUT&${uri}&${date}`
   const sign = crypto.createHmac('sha1', md5Password).update(value).digest('base64')
   return `UPYUN ${operator}:${sign}`
@@ -20,17 +21,14 @@ const generateSignature = (options: IUpyunConfig, fileName: string): string => {
 
 const postOptions = (options: IUpyunConfig, fileName: string, signature: string, image: Buffer): IOldReqOptionsWithFullResponse => {
   const bucket = options.bucket
-  const path = options.path || ''
-  let endpoint = options.endpoint || 'https://v0.api.upyun.com'
-  if (endpoint.endsWith('/')) {
-    endpoint = endpoint.slice(0, -1)
-  }
+  const path = options.path
+  let endpoint = (options.endpoint || 'https://v0.api.upyun.com').replace(/\/+$/g, '')
   if (!endpoint.startsWith('http')) {
     endpoint = `https://${endpoint}`
   }
   return {
     method: 'PUT',
-    url: `${endpoint}/${bucket}/${encodeURIComponent(path)}${encodeURIComponent(fileName)}`.replace(/%2F/g, '/'),
+    url: `${endpoint}/${bucket}/${encodePath(`${path}${fileName}`)}`,
     headers: {
       Authorization: signature,
       Date: new Date().toUTCString(),
@@ -61,7 +59,8 @@ const handle = async (ctx: IPicGo): Promise<IPicGo> => {
   }
   try {
     const imgList = ctx.output
-    const path = upyunOptions.path || ''
+    const path = formatPathHelper({ path: upyunOptions.path })
+    upyunOptions.path = path
     for (const img of imgList) {
       if (img.fileName && img.buffer) {
         let image = img.buffer
@@ -75,7 +74,7 @@ const handle = async (ctx: IPicGo): Promise<IPicGo> => {
         if (body.statusCode === 200) {
           delete img.base64Image
           delete img.buffer
-          img.imgUrl = `${upyunOptions.url}/${encodeURIComponent(path)}${encodeURIComponent(img.fileName)}${suffix}`.replace(/%2F/g, '/')
+          img.imgUrl = `${upyunOptions.url}/${encodePath(`${path}${img.fileName}`)}${suffix}`
           if (upyunOptions.antiLeechToken) {
             const upt = getAntiLeechParam(upyunOptions.antiLeechToken, upyunOptions.expireTime, upyunOptions, img.fileName)
             img.imgUrl = img.imgUrl.includes('?') ? `${img.imgUrl}&${upt}` : `${img.imgUrl}?${upt}`

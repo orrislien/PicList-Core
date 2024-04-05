@@ -3,6 +3,7 @@ import { IBuildInEvent } from '../../utils/enum'
 import { type ILocalesKey } from '../../i18n/zh-CN'
 import fs from 'fs-extra'
 import path from 'path'
+import { encodePath, formatPathHelper } from './utils'
 
 const handle = async (ctx: IPicGo): Promise<IPicGo> => {
   const localConfig = ctx.getConfig<ILocalConfig>('picBed.local')
@@ -10,14 +11,10 @@ const handle = async (ctx: IPicGo): Promise<IPicGo> => {
     throw new Error('Can not find local config!')
   }
   const uploadPath = localConfig.path || ''
-  let customUrl = localConfig.customUrl || ''
-  if (customUrl) {
-    customUrl = customUrl.replace(/\/$/, '')
-  }
-  let webPath = localConfig.webPath || ''
-  if (webPath) {
-    webPath = webPath.replace(/\\/g, '/').replace(/^\//, '').replace(/\/$/, '')
-  }
+  const customUrl = (localConfig.customUrl || '').replace(/\/$/, '')
+  const webPath = formatPathHelper({
+    path: localConfig.webPath?.replace(/\\/g, '/')
+  })
   const imgList = ctx.output
   for (const img of imgList) {
     if (img.fileName && img.buffer) {
@@ -28,18 +25,16 @@ const handle = async (ctx: IPicGo): Promise<IPicGo> => {
       try {
         try {
           const imgTempPath = path.join(ctx.baseDir, 'imgTemp', 'local')
-          fs.ensureDirSync(path.dirname(path.join(uploadPath, img.fileName)))
-          fs.ensureDirSync(path.dirname(path.join(imgTempPath, img.fileName)))
-          fs.writeFileSync(path.join(uploadPath, img.fileName), image)
-          fs.copyFileSync(path.join(uploadPath, img.fileName), path.join(imgTempPath, img.fileName))
+          const fileImgTempPath = path.join(imgTempPath, img.fileName)
+          const fileUploadPath = path.join(uploadPath, img.fileName)
+          fs.ensureDirSync(path.dirname(fileUploadPath))
+          fs.ensureDirSync(path.dirname(fileImgTempPath))
+          fs.writeFileSync(fileUploadPath, image)
+          fs.copyFileSync(fileUploadPath, fileImgTempPath)
           delete img.base64Image
           delete img.buffer
           if (customUrl) {
-            if (webPath) {
-              img.imgUrl = `${customUrl}/${encodeURIComponent(webPath)}/${encodeURIComponent(img.fileName)}`.replace(/%2F/g, '/')
-            } else {
-              img.imgUrl = `${customUrl}/${encodeURIComponent(img.fileName)}`.replace(/%2F/g, '/')
-            }
+            img.imgUrl = `${customUrl}/${encodePath(`${webPath}${img.fileName}`)}`
           } else {
             img.imgUrl = path.join(uploadPath, img.fileName)
           }

@@ -3,6 +3,7 @@ import mime from 'mime-types'
 import { type IPicGo, type IPluginConfig, type ITcyunConfig, type IOldReqOptionsWithFullResponse } from '../../types'
 import { IBuildInEvent } from '../../utils/enum'
 import { type ILocalesKey } from '../../i18n/zh-CN'
+import { encodePath, formatPathHelper } from './utils'
 
 // generate COS signature string
 
@@ -73,7 +74,7 @@ const postOptions = (options: ITcyunConfig, fileName: string, signature: ISignat
     const endpoint = options.endpoint ? options.endpoint : `cos.${options.area}.myqcloud.com`
     return {
       method: 'PUT',
-      url: `http://${options.bucket}.${endpoint}/${encodeURIComponent(path)}${encodeURIComponent(fileName)}`,
+      url: `http://${options.bucket}.${endpoint}/${encodePath(`${path}${fileName}`)}`,
       headers: {
         Host: `${options.bucket}.${endpoint}`,
         Authorization: `q-sign-algorithm=sha1&q-ak=${options.secretId}&q-sign-time=${signature.signTime}&q-key-time=${signature.signTime}&q-header-list=host&q-url-param-list=&q-signature=${signature.signature}`,
@@ -93,8 +94,11 @@ const handle = async (ctx: IPicGo): Promise<IPicGo | boolean> => {
   }
   try {
     const imgList = ctx.output
-    const customUrl = tcYunOptions.customUrl
-    const path = tcYunOptions.path ?? ''
+    const customUrl = (tcYunOptions.customUrl || '').replace(/\/$/, '')
+    const path = formatPathHelper({
+      path: tcYunOptions.path
+    })
+    tcYunOptions.path = path
     const useV4 = !tcYunOptions.version || tcYunOptions.version === 'v4'
     for (const img of imgList) {
       if (img.fileName && img.buffer) {
@@ -137,7 +141,7 @@ const handle = async (ctx: IPicGo): Promise<IPicGo | boolean> => {
           delete img.base64Image
           delete img.buffer
           if (customUrl) {
-            img.imgUrl = `${customUrl}/${path}${img.fileName}`
+            img.imgUrl = `${customUrl}/${encodePath(`${path}${img.fileName}`)}${optionUrl}`
           } else {
             img.imgUrl = `${body.data.source_url as string}${optionUrl}`
           }
@@ -145,10 +149,10 @@ const handle = async (ctx: IPicGo): Promise<IPicGo | boolean> => {
           delete img.base64Image
           delete img.buffer
           if (customUrl) {
-            img.imgUrl = `${customUrl}/${encodeURIComponent(path)}${encodeURIComponent(img.fileName)}${optionUrl}`.replace(/%2F/g, '/')
+            img.imgUrl = `${customUrl}/${encodePath(`${path}${img.fileName}`)}${optionUrl}`
           } else {
             const endpoint = tcYunOptions.endpoint ? tcYunOptions.endpoint : `cos.${tcYunOptions.area}.myqcloud.com`
-            img.imgUrl = `https://${tcYunOptions.bucket}.${endpoint}/${encodeURIComponent(path)}${encodeURIComponent(img.fileName)}${optionUrl}`.replace(/%2F/g, '/')
+            img.imgUrl = `https://${tcYunOptions.bucket}.${endpoint}/${encodePath(`${path}${img.fileName}`)}${optionUrl}`
           }
         } else {
           throw new Error(res.body.msg)

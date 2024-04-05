@@ -3,6 +3,7 @@ import crypto from 'crypto'
 import mime from 'mime-types'
 import { IBuildInEvent } from '../../utils/enum'
 import { type ILocalesKey } from '../../i18n/zh-CN'
+import { encodePath, formatPathHelper } from './utils'
 
 const getCurrentUTCDate = (): string => new Date().toUTCString()
 
@@ -18,7 +19,7 @@ const generateSignature = (options: IAliyunConfig, fileName: string): string => 
 const postOptions = (options: IAliyunConfig, fileName: string, signature: string, image: Buffer): IOldReqOptionsWithFullResponse => {
   return {
     method: 'PUT',
-    url: `https://${options.bucket}.${options.area}.aliyuncs.com/${encodeURIComponent(options.path)}${encodeURIComponent(fileName)}`.replace(/%2F/g, '/'),
+    url: `https://${options.bucket}.${options.area}.aliyuncs.com/${encodePath(`${options.path}${fileName}`)}`,
     headers: {
       Host: `${options.bucket}.${options.area}.aliyuncs.com`,
       Authorization: signature,
@@ -35,14 +36,11 @@ const handle = async (ctx: IPicGo): Promise<IPicGo> => {
   if (!aliYunOptions) {
     throw new Error('Can\'t find aliYun OSS config')
   }
-  aliYunOptions.path = aliYunOptions.path.replace(/\/*$/, '').replace(/^\/*/, '') + '/'
-  if (aliYunOptions.path === '/') {
-    aliYunOptions.path = ''
-  }
+  aliYunOptions.path = formatPathHelper({ path: aliYunOptions.path })
   try {
     const imgList = ctx.output
-    const customUrl = aliYunOptions.customUrl
-    const path = aliYunOptions.path ?? ''
+    const customUrl = (aliYunOptions.customUrl || '').replace(/\/$/, '')
+    const path = aliYunOptions.path
     for (const img of imgList) {
       if (img.fileName && img.buffer) {
         const signature = generateSignature(aliYunOptions, img.fileName)
@@ -57,9 +55,9 @@ const handle = async (ctx: IPicGo): Promise<IPicGo> => {
           delete img.buffer
           const optionUrl = aliYunOptions.options || ''
           if (customUrl) {
-            img.imgUrl = `${customUrl}/${encodeURIComponent(path)}${encodeURIComponent(img.fileName)}${optionUrl}`.replace(/%2F/g, '/')
+            img.imgUrl = `${customUrl}/${encodePath(`${path}${img.fileName}`)}${optionUrl}`
           } else {
-            img.imgUrl = `https://${aliYunOptions.bucket}.${aliYunOptions.area}.aliyuncs.com/${encodeURIComponent(path)}${encodeURIComponent(img.fileName)}${optionUrl}`.replace(/%2F/g, '/')
+            img.imgUrl = `https://${aliYunOptions.bucket}.${aliYunOptions.area}.aliyuncs.com/${encodePath(`${path}${img.fileName}`)}${optionUrl}`
           }
         } else {
           throw new Error('Upload failed')

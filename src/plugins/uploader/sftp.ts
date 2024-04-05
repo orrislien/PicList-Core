@@ -4,6 +4,7 @@ import { type ILocalesKey } from '../../i18n/zh-CN'
 import path from 'path'
 import SSHClient from '../../utils/sshClient'
 import fs from 'fs-extra'
+import { encodePath, formatPathHelper } from './utils'
 
 const handle = async (ctx: IPicGo): Promise<IPicGo> => {
   const sftpplistConfig = ctx.getConfig<ISftpPlistConfig>('picBed.sftpplist')
@@ -11,8 +12,17 @@ const handle = async (ctx: IPicGo): Promise<IPicGo> => {
     throw new Error('Can not find sftpplist config!')
   }
   sftpplistConfig.port = Number(sftpplistConfig.port) || 22
-  sftpplistConfig.uploadPath = (sftpplistConfig.uploadPath || '').replace(/^\/+|\/+$/g, '') + '/'
-  const webPath = (sftpplistConfig.webPath || '').replace(/^\/+|\/+$/g, '') + '/'
+  if (sftpplistConfig.port < 0 || sftpplistConfig.port > 65535) {
+    sftpplistConfig.port = 22
+  }
+  sftpplistConfig.uploadPath = formatPathHelper({
+    path: sftpplistConfig.uploadPath,
+    rootToEmpty: false
+  })
+  const webPath = formatPathHelper({
+    path: sftpplistConfig.webPath,
+    rootToEmpty: false
+  })
   try {
     const imgList = ctx.output
     for (const img of imgList) {
@@ -36,9 +46,9 @@ const handle = async (ctx: IPicGo): Promise<IPicGo> => {
         delete img.buffer
         const baseUrl = sftpplistConfig.customUrl || sftpplistConfig.host
         if (sftpplistConfig.webPath) {
-          img.imgUrl = `${baseUrl}/${webPath === '/' ? '' : encodeURIComponent(webPath)}${encodeURIComponent(img.fileName)}`.replace(/%2F/g, '/')
+          img.imgUrl = `${baseUrl}/${encodePath(`${webPath === '/' ? '' : webPath}${img.fileName}`)}`
         } else {
-          img.imgUrl = `${baseUrl}/${sftpplistConfig.uploadPath === '/' ? '' : encodeURIComponent(sftpplistConfig.uploadPath)}${encodeURIComponent(img.fileName)}`.replace(/%2F/g, '/')
+          img.imgUrl = `${baseUrl}/${encodePath(`${sftpplistConfig.uploadPath === '/' ? '' : sftpplistConfig.uploadPath}${img.fileName}`)}`
         }
         const imgTempFilePath = path.join(imgTempPath, img.fileName)
         fs.ensureDirSync(path.dirname(imgTempFilePath))

@@ -5,6 +5,7 @@ import fs from 'fs-extra'
 import path from 'path'
 import type { WebDAVClient, WebDAVClientOptions } from 'webdav'
 import { AuthType, createClient } from 'webdav'
+import { encodePath, formatPathHelper } from './utils'
 
 const handle = async (ctx: IPicGo): Promise<IPicGo | boolean> => {
   const webdavplistOptions = ctx.getConfig<IWebdavPlistConfig>('picBed.webdavplist')
@@ -13,9 +14,15 @@ const handle = async (ctx: IPicGo): Promise<IPicGo | boolean> => {
   }
   webdavplistOptions.host = webdavplistOptions.host.replace(/^https?:\/\/|\/+$/g, '')
   webdavplistOptions.host = (webdavplistOptions.sslEnabled ? 'https://' : 'http://') + webdavplistOptions.host
-  webdavplistOptions.path = (webdavplistOptions.path || '').replace(/^\/+|\/+$/g, '') + '/'
+  webdavplistOptions.path = formatPathHelper({
+    path: webdavplistOptions.path,
+    rootToEmpty: false
+  })
   const authType = webdavplistOptions.authType || 'basic'
-  const webpath = (webdavplistOptions.webpath || '').replace(/^\/+|\/+$/g, '') + '/'
+  const webpath = formatPathHelper({
+    path: webdavplistOptions.webpath,
+    rootToEmpty: false
+  })
   const suffix = webdavplistOptions.options || ''
   try {
     const imgList = ctx.output
@@ -53,9 +60,9 @@ const handle = async (ctx: IPicGo): Promise<IPicGo | boolean> => {
           delete img.buffer
           const baseUrl = customUrl || webdavplistOptions.host
           if (webdavplistOptions.webpath) {
-            img.imgUrl = `${baseUrl}/${webpath === '/' ? '' : encodeURIComponent(webpath)}${encodeURIComponent(img.fileName)}${suffix}`.replace(/%2F/g, '/')
+            img.imgUrl = `${baseUrl}/${encodePath(`${webpath}${img.fileName}`)}${suffix}`
           } else {
-            img.imgUrl = `${baseUrl}/${uploadPath === '/' ? '' : encodeURIComponent(uploadPath)}${encodeURIComponent(img.fileName)}${suffix}`.replace(/%2F/g, '/')
+            img.imgUrl = `${baseUrl}/${encodePath(`${uploadPath}${img.fileName}`)}${suffix}`
           }
           img.galleryPath = `http://localhost:36699/webdavplist/${encodeURIComponent(img.fileName)}`
         } else {

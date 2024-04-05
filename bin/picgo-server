@@ -359,6 +359,15 @@ class Server {
           }
         })
       } else {
+        let urlSP = query ? new URLSearchParams(query) : undefined
+        console.log('[PicList Server] get the request from IP:', request.socket.remoteAddress)
+        if (request.socket.remoteAddress === '127.0.0.1' || request.socket.remoteAddress === '::1') {
+          if (urlSP) {
+            urlSP.set('key', key)
+          } else {
+            urlSP = new URLSearchParams('key=' + key)
+          }
+        }
         if (request.headers['content-type'] && request.headers['content-type'].startsWith('multipart/form-data')) {
           uploadMulter.any()(request, response, err => {
             if (err) {
@@ -379,7 +388,7 @@ class Server {
               handler({
                 list: list,
                 response,
-                urlparams: query ? new URLSearchParams(query) : undefined
+                urlparams:urlSP
               })
             }
           })
@@ -408,7 +417,7 @@ class Server {
               handler({
                 ...postObj,
                 response,
-                urlparams: query ? new URLSearchParams(query) : undefined
+                urlparams: urlSP
               })
             }
           })
