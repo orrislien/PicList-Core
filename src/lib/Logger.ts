@@ -35,7 +35,7 @@ export class Logger implements ILogger {
     if (!this.ctx.getConfig<Undefinable<string>>('silent') && this.checkLogLevel(type, this.logLevel)) {
       const logHeader = chalk[this.level[type] as ILogColor](`[PicList ${type.toUpperCase()}]:`)
       console.log(logHeader, ...msg)
-      this.logPath = this.ctx.getConfig<Undefinable<string>>('settings.logPath') || path.resolve(this.ctx.baseDir, './piclist.log')
+      this.logPath = this.ctx.getConfig<Undefinable<string>>('settings.logPath') || path.join(this.ctx.baseDir, './piclist.log')
       setTimeout(() => {
         // fix log file is too large, now the log file's default size is 10 MB
         try {

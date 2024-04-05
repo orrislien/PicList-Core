@@ -70,7 +70,7 @@ export class PicGo extends EventEmitter implements IPicGo {
   }
 
   private initConfigPath (): void {
-    this.configPath = this.configPath || path.resolve(homedir(), '.piclist/config.json')
+    this.configPath = this.configPath || path.join(homedir(), '.piclist/config.json')
     if (path.extname(this.configPath).toUpperCase() !== '.JSON') {
       this.configPath = ''
       throw Error('The configuration file only supports JSON format.')
